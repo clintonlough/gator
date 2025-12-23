@@ -1,0 +1,25 @@
+import { db } from "..";
+import { eq } from "drizzle-orm";
+import { users } from "../schema";
+
+export async function createUser(name: string) {
+  const [result] = await db.insert(users).values({ name: name }).returning();
+  return result;
+}
+
+export async function getUserByName(name: string) {
+    const [user] = await db.select().from(users).where(eq(users.name, name));
+    return user;
+}
+
+export async function getUsers() {
+    const [usersList] = await db.select().from(users);
+    for (const user in usersList) {
+      console.log(user.)
+    }
+}
+
+export async function resetUsers() {
+  await db.execute(`TRUNCATE TABLE users RESTART IDENTITY CASCADE`);
+  console.log("Deleted all records from USER table");
+}
