@@ -1,6 +1,6 @@
 import { error } from "node:console";
-import { setUser } from "./config.js";
-import { createUser, getUserByName, resetUsers } from "./lib/db/queries/users.js";
+import { setUser, getCurrentUser } from "./config.js";
+import { createUser, getUserByName, getUsers, resetUsers } from "./lib/db/queries/users.js";
 
 type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
 
@@ -41,6 +41,20 @@ export async function handlerRegisterUser(cmdName: string, ...args: string[]){
     console.log("New user created:")
     console.log(user);
     await handlerLogin(cmdName, ...args);
+}
+
+export async function handlerUsers(cmdName: string, ...args: string[]) {
+    const usersList = await getUsers();
+    const currentUser = await getCurrentUser();
+
+    for (const user in usersList) {
+      const username = usersList[user].name
+      if (username === currentUser) {
+        console.log(`* ${username} (current)`);
+      } else {
+        console.log(`* ${username}`);
+      }
+    }
 }
 
 export async function handlerReset(cmdName: string, ...args: string[]){

@@ -8,15 +8,13 @@ export async function createUser(name: string) {
 }
 
 export async function getUserByName(name: string) {
-    const [user] = await db.select().from(users).where(eq(users.name, name));
-    return user;
+  const [user] = await db.select().from(users).where(eq(users.name, name));
+  return user;
 }
 
 export async function getUsers() {
-    const [usersList] = await db.select().from(users);
-    for (const user in usersList) {
-      console.log(user.)
-    }
+  const usersList = await db.select().from(users);
+  return usersList;
 }
 
 export async function resetUsers() {

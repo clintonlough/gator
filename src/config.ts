@@ -40,6 +40,11 @@ export function readConfig(): Config {
     return cfg;
 }
 
+export async function getCurrentUser(): Promise<string> {
+    const currentConfig = readConfig();
+    return currentConfig.currentUserName;
+}
+
 export function validateConfig(raw: any): Config {
     if (typeof raw !== "object" || raw === null) {
     throw new Error("Config must be an object");
