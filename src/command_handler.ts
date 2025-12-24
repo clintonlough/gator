@@ -1,6 +1,7 @@
 import { error } from "node:console";
 import { setUser, getCurrentUser } from "./config.js";
 import { createUser, getUserByName, getUsers, resetUsers } from "./lib/db/queries/users.js";
+import { fetchFeed } from "./rss.js";
 
 type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
 
@@ -56,6 +57,13 @@ export async function handlerUsers(cmdName: string, ...args: string[]) {
       }
     }
 }
+
+export async function handlerAggregate(cmdName: string, ...args: string[]) {
+    const url = args[0];
+    const rssFeed = await fetchFeed(url);
+    console.log(JSON.stringify(rssFeed, null, 2));
+};
+
 
 export async function handlerReset(cmdName: string, ...args: string[]){
     await resetUsers();
