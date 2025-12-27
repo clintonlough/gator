@@ -12,12 +12,18 @@ export async function getUserByName(name: string) {
   return user;
 }
 
+export async function getUserById(id: string) {
+  const [user] = await db.select().from(users).where(eq(users.id, id));
+  return user;
+}
+
 export async function getUsers() {
   const usersList = await db.select().from(users);
   return usersList;
 }
 
 export async function resetUsers() {
+  await db.execute(`TRUNCATE TABLE feeds RESTART IDENTITY CASCADE`);
   await db.execute(`TRUNCATE TABLE users RESTART IDENTITY CASCADE`);
-  console.log("Deleted all records from USER table");
+  console.log("Deleted all records from USERS table and FEEDS tables");
 }
