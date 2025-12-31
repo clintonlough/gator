@@ -1,18 +1,34 @@
 import { error } from "node:console";
 import { setUser, getCurrentUser } from "./config.js";
 import { createUser, getUserByName, getUsers, getUserById, resetUsers } from "./lib/db/queries/users.js";
-import { createFeed, getFeeds, getFeedByUrl, getFeedById } from "./lib/db/queries/feeds.js";
-import { createFeedFollow, getFeedFollowsForUser } from "./lib/db/queries/feed_follows.js";
+import { createFeed, getFeeds, getFeedByUrl, getFeedById,getNextFeedToFetch, markFeedFetched } from "./lib/db/queries/feeds.js";
+import { createFeedFollow, getFeedFollowsForUser, deleteFeedFollow } from "./lib/db/queries/feed_follows.js";
 import { fetchFeed } from "./rss.js";
-import { feeds } from "./lib/db/schema.js";
+import { feeds, users, Feed, User } from "./lib/db/schema.js";
 
+type UserCommandHandler = (cmdName: string, user: User, ...args: string[]) => Promise<void>;
 type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
+type middlewareLoggedIn = (handler: UserCommandHandler) => CommandHandler;
 
-export type Feed = typeof feeds.$inferSelect; // feeds is the table object in schema.ts
+
 export type CommandsRegistry = Record<string, CommandHandler>;
-
 export const commandsRegistry: CommandsRegistry = {
 };
+
+export function middlewareLoggedIn(handler: UserCommandHandler): CommandHandler {
+    return async (cmdName: string, ...args: string[]): Promise<void> => { 
+        const username = await getCurrentUser();
+        if (!username) {
+            throw new Error ("No user currently logged in");
+        }
+        const user = await getUserByName(username);
+        if (!user) {
+            throw new Error(`User ${username} not found`);
+        }
+        await handler(cmdName, user, ...args);
+    };
+}
+
 
 export async function handlerLogin(cmdName: string, ...args: string[]){
     if (args.length === 0) {
@@ -34,7 +50,6 @@ export async function registerCommand(registry: CommandsRegistry, cmdName: strin
 };
 
 export async function handlerRegisterUser(cmdName: string, ...args: string[]){
-    console.log("accessed register user function");
     if (args.length === 0) {
         throw new Error("Please provide a valid argument");
     }
@@ -62,14 +77,12 @@ export async function handlerUsers(cmdName: string, ...args: string[]) {
     }
 }
 
-export async function handlerAddFeed(cmdName: string, ...args: string[]) {
+export async function handlerAddFeed(cmdName: string, user: User, ...args: string[]) {
     const name = args[0];
     const url = args[1];
-    const username = await getCurrentUser();
-    const user = await getUserByName(username);
 
-    if (!name || !url || !user) {
-        throw new Error("Please provide a name and url, and ensure you are logged in");
+    if (!name || !url) {
+        throw new Error("Please provide a name and url");
     }
 
     const feed = await createFeed(name, url, user.id);
@@ -93,24 +106,19 @@ export async function handlerGetFeeds() {
     }
 }
 
-export async function handlerFollow(cmdName: string, ...args: string[]) {
+export async function handlerFollow(cmdName: string, user: User, ...args: string[]) {
     const url = args[0];
     if (!url) {
         throw new Error ("No URL Provided");
     }
     const feed = await getFeedByUrl(url);
-    const username = await getCurrentUser()
-    const user = await getUserByName(username);
-
     const newFeedFollow = await createFeedFollow(user.id, feed.id);
     console.log("New feed follow created");
     console.log(`User: ${newFeedFollow.userName}`);
     console.log(`Feed: ${newFeedFollow.feedName}`);
 }
 
-export async function handlerFollowing(cmdName: string, ...args: string[]) {
-    const username = await getCurrentUser();
-    const user = await getUserByName(username);
+export async function handlerFollowing(cmdName: string, user: User, ...args: string[]) {
     const feeds = await getFeedFollowsForUser(user.id);
     console.log(`User ${user.name} following feeds:`);
     for (const feed of feeds) {
@@ -119,11 +127,87 @@ export async function handlerFollowing(cmdName: string, ...args: string[]) {
     }
 }
 
-export async function handlerAggregate(cmdName: string, ...args: string[]) {
+export async function handlerUnfollow(cmdName: string, user: User, ...args: string[]) {
+    const feeds = await getFeedFollowsForUser(user.id);
     const url = args[0];
-    const rssFeed = await fetchFeed(url);
-    console.log(JSON.stringify(rssFeed, null, 2));
+    if (!url) {
+        throw new Error ("Please provide a url");
+    }
+    for (const feed of feeds) {
+        let feedData = (await getFeedById(feed.feedId))
+        let feedUrl = feedData.url;
+        if (feedUrl === url) {
+            await deleteFeedFollow(feed.id);
+            console.log(`${feedData.name} unfollowed`);
+            return;
+        }
+    }
+    console.log("No feed follow found to delete");
+}
+
+export async function handlerAggregate(cmdName: string, ...args: string[]) {
+    const timeBetweenReqs = args[0];
+    const timeInterval = parseDuration(timeBetweenReqs);
+    console.log(`Collecting feeds every ${timeBetweenReqs}`)
+
+    scrapeFeeds().catch((err) => {
+        console.error("Error while scraping feeds:", err);
+    });
+
+    const interval = setInterval(() => {
+        scrapeFeeds().catch((err) => {
+            console.error("Error while scraping feeds:", err);
+    });
+    }, timeInterval);
+
+    await new Promise<void>((resolve) => {
+        process.on("SIGINT", () => {
+            console.log("Shutting down feed aggregator...");
+        clearInterval(interval);
+        resolve();
+        });
+    });
+    
 };
+
+function parseDuration(durationStr: string): number {
+    const regex = /^(\d+)(ms|s|m|h)$/;
+    const match = durationStr.match(regex);
+    console.log(match);
+
+    if (!match) {
+        throw new Error("Please provide a valid duration. E.g. 1h");
+    }
+
+    const amount = Number(match[1]); // "5" -> 5
+    const unit = match[2];           // "m"
+
+    switch (unit) {
+        case "ms":
+        return amount;
+        case "s":
+        return amount * 1000;
+        case "m":
+        return amount * 60 * 1000;
+        case "h":
+        return amount * 60 * 60 * 1000;
+        default:
+        throw new Error(`unsupported unit: ${unit}`);
+    }
+}
+
+export async function scrapeFeeds() {
+    const feed = await getNextFeedToFetch();
+    const feedUrl = String(feed.url);
+    console.log(`Fetching new posts from ${feed.name}:`);
+    console.log("");
+    const rssFeed = await fetchFeed(feedUrl);
+    await markFeedFetched(String(feed.id));
+    for (const post of rssFeed.channel.item) {
+        console.log(post.title);
+    }
+    console.log("");
+}
 
 
 export async function handlerReset(cmdName: string, ...args: string[]){

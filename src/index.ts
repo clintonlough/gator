@@ -1,5 +1,5 @@
 import { readConfig, setUser } from "./config.js";
-import { commandsRegistry, CommandsRegistry, handlerAddFeed, handlerAggregate, handlerFollow, handlerFollowing, handlerGetFeeds, handlerLogin, handlerRegisterUser, handlerReset, handlerUsers, registerCommand, runCommand } from "./command_handler.js";
+import { middlewareLoggedIn, commandsRegistry, CommandsRegistry, handlerAddFeed, handlerAggregate, handlerFollow, handlerFollowing, handlerGetFeeds, handlerLogin, handlerRegisterUser, handlerReset, handlerUsers, registerCommand, runCommand, handlerUnfollow } from "./command_handler.js";
 import { argv } from "node:process";
 
 async function main() {
@@ -16,10 +16,11 @@ function registerCommands() {
   registerCommand(commandsRegistry, "reset", handlerReset);
   registerCommand(commandsRegistry, "users", handlerUsers);
   registerCommand(commandsRegistry, "agg", handlerAggregate);
-  registerCommand(commandsRegistry, "addfeed", handlerAddFeed);
+  registerCommand(commandsRegistry, "addfeed", middlewareLoggedIn(handlerAddFeed));
   registerCommand(commandsRegistry, "feeds", handlerGetFeeds);
-  registerCommand(commandsRegistry, "follow", handlerFollow);
-  registerCommand(commandsRegistry, "following", handlerFollowing);
+  registerCommand(commandsRegistry, "follow", middlewareLoggedIn(handlerFollow));
+  registerCommand(commandsRegistry, "following", middlewareLoggedIn(handlerFollowing));
+  registerCommand(commandsRegistry, "unfollow", middlewareLoggedIn(handlerUnfollow));
 }
 
 main();

@@ -14,6 +14,13 @@
       "when": 1766871585070,
       "tag": "0001_flippant_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767043097035,
+      "tag": "0002_perfect_gauntlet",
+      "breakpoints": true
     }
   ]
 }

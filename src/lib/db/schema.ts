@@ -9,6 +9,7 @@ export const users = pgTable("users", {
     .$onUpdate(() => new Date()),
   name: text("name").notNull().unique(),
 });
+export type User = typeof users.$inferSelect;
 
 export const feeds = pgTable("feeds", {
   id: uuid("id").primaryKey().defaultRandom().notNull(),
@@ -20,7 +21,9 @@ export const feeds = pgTable("feeds", {
   name: text("name").notNull().unique(),
   url: text("url").unique(),
   userId: uuid("user_id").notNull().references(() => users.id, {onDelete: "cascade"}),
+  lastFetchedAt: timestamp("last_fetched_at"),
 });
+export type Feed = typeof feeds.$inferSelect; // feeds is the table object in schema.ts
 
 export const feedFollows = pgTable("feed_follows", {
   id: uuid("id").primaryKey().defaultRandom().notNull(),
