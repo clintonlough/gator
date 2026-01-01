@@ -21,6 +21,13 @@
       "when": 1767043097035,
       "tag": "0002_perfect_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767302887462,
+      "tag": "0003_glorious_leader",
+      "breakpoints": true
     }
   ]
 }

@@ -3,8 +3,10 @@ import { setUser, getCurrentUser } from "./config.js";
 import { createUser, getUserByName, getUsers, getUserById, resetUsers } from "./lib/db/queries/users.js";
 import { createFeed, getFeeds, getFeedByUrl, getFeedById,getNextFeedToFetch, markFeedFetched } from "./lib/db/queries/feeds.js";
 import { createFeedFollow, getFeedFollowsForUser, deleteFeedFollow } from "./lib/db/queries/feed_follows.js";
+import { createPost, getPostByUrl, getPostsForUser } from "./lib/db/queries/posts.js";
 import { fetchFeed } from "./rss.js";
-import { feeds, users, Feed, User } from "./lib/db/schema.js";
+import { feeds, users, Feed, User, Post } from "./lib/db/schema.js";
+import { get } from "node:http";
 
 type UserCommandHandler = (cmdName: string, user: User, ...args: string[]) => Promise<void>;
 type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
@@ -204,9 +206,54 @@ export async function scrapeFeeds() {
     const rssFeed = await fetchFeed(feedUrl);
     await markFeedFetched(String(feed.id));
     for (const post of rssFeed.channel.item) {
-        console.log(post.title);
+        savePost(post, String(feed.id));
     }
     console.log("");
+}
+
+export async function savePost(post: any, feedId: string) {
+
+    console.log(`Saving post to db: ${post.title}`);
+    if (!post.link) {
+        console.log("Post has no URL, skipping");
+    return;
+}
+    const saved = await checkSaved(post.link);
+    if (saved === false) {
+        const title = post.title;
+        const description = post.description;
+        const url = post.link;
+        let publishedAt = null;
+        if (post.published_at) {
+            publishedAt = new Date(post.published_at);
+        }
+        await createPost(title, url, feedId, description, publishedAt);
+    } else {
+        console.log("Post already saved to db");
+    }
+
+}
+
+async function checkSaved(url: string) {
+    const result = await getPostByUrl(url);
+    if (result) {
+        return true;
+    }
+    return false;
+}
+
+export async function handlerBrowse(cmdName: string, user: User,  ...args: string[]) {
+    let numPosts = 2;
+    if (args[0]) {
+        numPosts = Number(args[0]);
+    };
+    const posts = await getPostsForUser(user.id, numPosts);
+    console.log(`New posts for ${user.name}:`);
+    console.log("");
+    for (const post of posts) {
+        console.log(`* ${post.title} - ${post.description}`);
+        console.log(`  - ${post.url}`);
+    }
 }
 
 
