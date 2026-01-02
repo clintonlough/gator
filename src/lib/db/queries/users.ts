@@ -22,8 +22,10 @@ export async function getUsers() {
   return usersList;
 }
 
-export async function resetUsers() {
+export async function resetDatabase() {
   await db.execute(`TRUNCATE TABLE feeds RESTART IDENTITY CASCADE`);
   await db.execute(`TRUNCATE TABLE users RESTART IDENTITY CASCADE`);
-  console.log("Deleted all records from USERS table and FEEDS tables");
+  await db.execute(`TRUNCATE TABLE feed_follows RESTART IDENTITY CASCADE`);
+  await db.execute(`TRUNCATE TABLE posts RESTART IDENTITY CASCADE`);
+  console.log("Deleted all records from the database");
 }

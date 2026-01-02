@@ -1,6 +1,6 @@
 import { error } from "node:console";
 import { setUser, getCurrentUser } from "./config.js";
-import { createUser, getUserByName, getUsers, getUserById, resetUsers } from "./lib/db/queries/users.js";
+import { createUser, getUserByName, getUsers, getUserById, resetDatabase } from "./lib/db/queries/users.js";
 import { createFeed, getFeeds, getFeedByUrl, getFeedById,getNextFeedToFetch, markFeedFetched } from "./lib/db/queries/feeds.js";
 import { createFeedFollow, getFeedFollowsForUser, deleteFeedFollow } from "./lib/db/queries/feed_follows.js";
 import { createPost, getPostByUrl, getPostsForUser } from "./lib/db/queries/posts.js";
@@ -258,7 +258,7 @@ export async function handlerBrowse(cmdName: string, user: User,  ...args: strin
 
 
 export async function handlerReset(cmdName: string, ...args: string[]){
-    await resetUsers();
+    await resetDatabase();
 }
 
 export async function runCommand(registry: CommandsRegistry, cmdName: string, ...args: string[]) {
